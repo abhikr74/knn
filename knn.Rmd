@@ -1,0 +1,118 @@
+---
+title: "knn"
+author: "Abhishek Kumar"
+date: "2/24/2021"
+output: html_document
+---
+
+# KNN
+
+__Setting Working Directory__
+```{r wkd}
+setwd('G:\\My Drive\\spring_semester\\multivariate_analysis\\labs\\lab5')
+```
+
+__Loading Required Libraries__
+
+```{r}
+library(MASS)
+library(class)
+```
+
+
+__1. Generating Multivariate data__
+
+> mvnorm() function from MASS library can be used to generate multivariate normal distribution data.
+> Suppose we have a set of observations each of which is classiﬁed as belonging to group A or group B. Say group A has a 2-dimensional multivariate normal distribution with mean µT A = (0,0) and covariance matrix ΣA and those data points in group B have a 2-dimensional multivariate normal distribution with mean µT B = (5,3) and covariance matrix ΣB
+
+*Generating  900 datapoints for group A*
+
+```{r}
+N = 900
+muA = c(0,0) # Mean of group A data distribution
+SigmaA = matrix(c(10, 3, 3, 2), 2, 2) # covariance matrix for group A
+
+muB = c(5,3) # Mean of group B data distribution
+SigmaB = matrix(c(12, 2, 2, 15), 2, 2) # covariance matrix for group B
+
+x = mvrnorm(n = N, muA, SigmaA)
+y = mvrnorm(n = N, muB, SigmaB)
+
+#plotting
+kdfitx =  kde2d(x[,1], x[,2], n = 10)
+kdfity =  kde2d(y[,1], y[,2], n = 10)
+#contour(kdfitx, add=TRUE, col="red", nlevels=6)
+
+```
+
+```{r}
+# Joining two data samples into one dataset
+z = rbind(x, y)
+dim(z)
+
+# Coding class A as label 1 and class B as 2
+cls = c(rep(1, N), rep(2, N))
+z_dat = data.frame(z, cls)
+head(z_dat)
+
+plot(z_dat[, 1:2], col = z_dat$cls, pch = z_dat$cls)
+
+```
+
+```{r}
+plot(z_dat[,1:2], type="n")
+contour(kdfitx, add=TRUE, col="red", nlevels=6)
+contour(kdfity, add=TRUE, col="blue", nlevels=6)
+```
+
+__2 k Nearest neighbours classiﬁer__
+
+> k nearest neighbours classification can pe performed using __*knn()*__ function which is part of the __*class*__ library.
+
+
+```{r knn}
+
+# Dividing 2/3rds of the data in the training set and 1/3 in the test set. 
+
+index = c(1:600, 901:1500)
+train = z_dat[index, 1:2]
+test = z_dat[-index, 1:2]
+K =10
+# Running K nearest neighbours algorithm with K in range of 1:10 to find the best K
+
+misclassification_rate = rep(NA, 10)
+for(k in 1:K){
+  
+  knn_res = knn(train, test, cl = z_dat[index, 3], k = k)
+  
+  # Creating cross- classification table for two factors 
+  table(knn_res, z_dat[-index, 3])
+
+  # Diagonal elements represents the agreement between the predicted labels and the actual class labels of observations.
+  misclassification = nrow(test) - sum( diag(table(knn_res, z_dat[-index, 3])) )
+  misclassification_rate[k] = ( misclassification / nrow(test) ) * 100
+  
+}
+
+misclassification_rate
+plot(x = 1:K, misclassification_rate, type = 'b', pch = '20')
+
+```
+> The classiication rate is least for K = 5.
+
+```{r}
+# Generating 8 unknown observations
+unknown1 = mvrnorm(n = 4, muA, SigmaA)
+unknown2 = mvrnorm(n = 4, muB, SigmaB)
+unknown = rbind(unknown1, unknown2)
+cls_tst = c(rep(1, 4), rep(2, 4))
+
+knn_tst = knn(train, unknown, cl = z_dat[index, 3], k =5)
+
+table(knn_tst,cls_tst)
+
+miscl = length(cls_tst) - sum( diag(table(knn_tst,cls_tst)) )
+miscl_rate = ( miscl / length(cls_tst) ) * 100
+miscl_rate
+```
+> 12.5% misclassification rate observed for new unknown values on classification using optimal k value of 6.
